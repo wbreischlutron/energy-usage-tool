@@ -33,8 +33,28 @@ const EnergyUsageAnalyzer = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+      // Filter out invalid rows (blank rows, confidentiality notice, etc.)
+      const filteredData = jsonData.filter((row) => {
+        // Skip rows without a Date field
+        if (!row.Date) return false;
+
+        // Skip rows where Date contains the confidentiality notice text
+        if (typeof row.Date === "string") {
+          const lowerDate = row.Date.toLowerCase();
+          if (
+            lowerDate.includes("information contained") ||
+            lowerDate.includes("confidential") ||
+            lowerDate.includes("unauthorized use")
+          ) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
       // Process the data
-      const processedData = jsonData.map((row, idx) => {
+      const processedData = filteredData.map((row, idx) => {
         let date;
 
         // Handle different possible date formats
