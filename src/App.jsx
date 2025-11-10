@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -20,6 +20,16 @@ const EnergyUsageAnalyzer = () => {
   const [selectedView, setSelectedView] = useState("daily-pattern");
   const [selectedDate, setSelectedDate] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [kwhCost, setKwhCost] = useState(() => {
+    // Load kWh cost from localStorage on initial render
+    const saved = localStorage.getItem("kwhCost");
+    return saved ? parseFloat(saved) : 0.12; // Default to $0.12/kWh
+  });
+
+  // Save kWh cost to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("kwhCost", kwhCost.toString());
+  }, [kwhCost]);
 
   // Parse the Excel file
   const handleFileUpload = async (e) => {
@@ -215,6 +225,12 @@ const EnergyUsageAnalyzer = () => {
     const maxDailyUsage = Math.max(...data.map((d) => d.total));
     const minDailyUsage = Math.min(...data.map((d) => d.total));
 
+    // Calculate costs
+    const totalCost = totalUsage * kwhCost;
+    const avgDailyCost = avgDailyUsage * kwhCost;
+    const maxDailyCost = maxDailyUsage * kwhCost;
+    const minDailyCost = minDailyUsage * kwhCost;
+
     // Find peak usage time across all days
     const allIntervalUsages = {};
     data.forEach((day) => {
@@ -240,12 +256,16 @@ const EnergyUsageAnalyzer = () => {
       avgDailyUsage: avgDailyUsage.toFixed(2),
       maxDailyUsage: maxDailyUsage.toFixed(2),
       minDailyUsage: minDailyUsage.toFixed(2),
+      totalCost: totalCost.toFixed(2),
+      avgDailyCost: avgDailyCost.toFixed(2),
+      maxDailyCost: maxDailyCost.toFixed(2),
+      minDailyCost: minDailyCost.toFixed(2),
       peakTime: peakTime.time,
       peakAvgUsage: peakTime.avg.toFixed(2),
       daysAnalyzed: data.length,
       dateRange: `${data[0].dateStr} - ${data[data.length - 1].dateStr}`,
     };
-  }, [data]);
+  }, [data, kwhCost]);
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -327,60 +347,120 @@ const EnergyUsageAnalyzer = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">
                 Energy Usage Dashboard
               </h1>
               <p className="text-gray-600 mt-1">{statistics.dateRange}</p>
             </div>
-            <button
-              onClick={() => setData(null)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              Upload New File
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  kWh Cost ($):
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={kwhCost}
+                  onChange={(e) => setKwhCost(parseFloat(e.target.value) || 0)}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={() => setData(null)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
+              >
+                Upload New File
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Statistics Cards */}
         {statistics && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-5">
-              <div className="text-sm text-gray-600 mb-1">Total Usage</div>
-              <div className="text-2xl font-bold text-indigo-600">
-                {statistics.totalUsage} kWh
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {statistics.dateRange}
+          <>
+            {/* Usage Statistics */}
+            <div className="mb-3">
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">Energy Usage</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Total Usage</div>
+                  <div className="text-2xl font-bold text-indigo-600">
+                    {statistics.totalUsage} kWh
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {statistics.dateRange}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Avg Daily Usage</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {statistics.avgDailyUsage} kWh
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {statistics.daysAnalyzed} days analyzed
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Daily Range</div>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {statistics.minDailyUsage} - {statistics.maxDailyUsage}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Min - Max kWh</div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Peak Time</div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {statistics.peakTime}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Avg: {statistics.peakAvgUsage} kWh
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-5">
-              <div className="text-sm text-gray-600 mb-1">Avg Daily Usage</div>
-              <div className="text-2xl font-bold text-green-600">
-                {statistics.avgDailyUsage} kWh
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {statistics.daysAnalyzed} days analyzed
+
+            {/* Cost Statistics */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">Cost Analysis</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Total Cost</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    ${statistics.totalCost}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {statistics.dateRange}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Avg Daily Cost</div>
+                  <div className="text-2xl font-bold text-teal-600">
+                    ${statistics.avgDailyCost}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {statistics.daysAnalyzed} days analyzed
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Daily Cost Range</div>
+                  <div className="text-2xl font-bold text-amber-600">
+                    ${statistics.minDailyCost} - ${statistics.maxDailyCost}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Min - Max daily</div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5">
+                  <div className="text-sm text-gray-600 mb-1">Rate</div>
+                  <div className="text-2xl font-bold text-cyan-600">
+                    ${kwhCost.toFixed(3)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">per kWh</div>
+                </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-5">
-              <div className="text-sm text-gray-600 mb-1">Daily Range</div>
-              <div className="text-2xl font-bold text-orange-600">
-                {statistics.minDailyUsage} - {statistics.maxDailyUsage}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Min - Max kWh</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-5">
-              <div className="text-sm text-gray-600 mb-1">Peak Time</div>
-              <div className="text-2xl font-bold text-red-600">
-                {statistics.peakTime}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Avg: {statistics.peakAvgUsage} kWh
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
         {/* View Selector */}
