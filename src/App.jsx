@@ -167,6 +167,23 @@ const EnergyUsageAnalyzer = () => {
     }
   };
 
+  // Auto-order datasets chronologically - earlier period should always be data1
+  useEffect(() => {
+    if (data1 && data2 && data1.length > 0 && data2.length > 0) {
+      const date1Start = data1[0].date;
+      const date2Start = data2[0].date;
+
+      // If data2 has an earlier start date, swap them
+      if (date2Start < date1Start) {
+        const temp = data1;
+        setData1(data2);
+        setData2(temp);
+        setSelectedDate1(data2[0]?.dateStr);
+        setSelectedDate2(temp[0]?.dateStr);
+      }
+    }
+  }, [data1, data2]);
+
   // Get time intervals in order
   const timeIntervals = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -462,6 +479,9 @@ const EnergyUsageAnalyzer = () => {
                 <p className="text-gray-600">
                   Upload two Excel files to compare energy usage across different time periods
                 </p>
+                <p className="text-sm text-indigo-600 mt-1">
+                  Files will be automatically ordered chronologically (earlier period on left)
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -494,10 +514,10 @@ const EnergyUsageAnalyzer = () => {
                     1
                   </div>
                   <span className="text-xl font-semibold text-gray-700 mb-2">
-                    {loading1 ? "Processing..." : data1 ? "File 1 Loaded ✓" : "Period 1 (e.g., 2024)"}
+                    {loading1 ? "Processing..." : data1 ? "File 1 Loaded ✓" : "First Excel File"}
                   </span>
                   <span className="text-sm text-gray-500 mb-3">
-                    {data1 ? `${data1.length} days loaded` : "Click to upload first Excel file"}
+                    {data1 ? `${data1.length} days loaded` : "Click to upload (any time period)"}
                   </span>
                   {data1 && (
                     <div className="text-xs text-gray-600 bg-blue-50 px-3 py-2 rounded">
@@ -525,10 +545,10 @@ const EnergyUsageAnalyzer = () => {
                     2
                   </div>
                   <span className="text-xl font-semibold text-gray-700 mb-2">
-                    {loading2 ? "Processing..." : data2 ? "File 2 Loaded ✓" : "Period 2 (e.g., 2025)"}
+                    {loading2 ? "Processing..." : data2 ? "File 2 Loaded ✓" : "Second Excel File"}
                   </span>
                   <span className="text-sm text-gray-500 mb-3">
-                    {data2 ? `${data2.length} days loaded` : "Click to upload second Excel file"}
+                    {data2 ? `${data2.length} days loaded` : "Click to upload (any time period)"}
                   </span>
                   {data2 && (
                     <div className="text-xs text-gray-600 bg-purple-50 px-3 py-2 rounded">
@@ -565,9 +585,9 @@ const EnergyUsageAnalyzer = () => {
                   Comparison Dashboard
                 </h1>
                 <div className="flex gap-4 mt-2 text-sm">
-                  <span className="text-blue-600 font-medium">Period 1: {statistics1.dateRange}</span>
+                  <span className="text-blue-600 font-medium">Period 1 (Earlier): {statistics1.dateRange}</span>
                   <span className="text-gray-400">vs</span>
-                  <span className="text-purple-600 font-medium">Period 2: {statistics2.dateRange}</span>
+                  <span className="text-purple-600 font-medium">Period 2 (Later): {statistics2.dateRange}</span>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
@@ -600,7 +620,7 @@ const EnergyUsageAnalyzer = () => {
           {/* Comparison Summary Cards */}
           {comparisonStats && (
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-700 mb-3">Comparison Summary (Period 2 vs Period 1)</h2>
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">Comparison Summary (Later vs Earlier Period)</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg shadow p-5">
                   <div className="text-sm text-gray-600 mb-1">Total Usage Difference</div>
@@ -646,7 +666,7 @@ const EnergyUsageAnalyzer = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Period 1 Statistics */}
             <div>
-              <h2 className="text-lg font-semibold text-blue-700 mb-3">Period 1 - {statistics1.dateRange}</h2>
+              <h2 className="text-lg font-semibold text-blue-700 mb-3">Period 1 (Earlier) - {statistics1.dateRange}</h2>
               <div className="space-y-3">
                 <div className="bg-white rounded-lg shadow p-4">
                   <div className="text-sm text-gray-600 mb-1">Total Usage</div>
@@ -671,7 +691,7 @@ const EnergyUsageAnalyzer = () => {
 
             {/* Period 2 Statistics */}
             <div>
-              <h2 className="text-lg font-semibold text-purple-700 mb-3">Period 2 - {statistics2.dateRange}</h2>
+              <h2 className="text-lg font-semibold text-purple-700 mb-3">Period 2 (Later) - {statistics2.dateRange}</h2>
               <div className="space-y-3">
                 <div className="bg-white rounded-lg shadow p-4">
                   <div className="text-sm text-gray-600 mb-1">Total Usage</div>
@@ -737,7 +757,7 @@ const EnergyUsageAnalyzer = () => {
                   dataKey="period1"
                   stroke="#3b82f6"
                   strokeWidth={2}
-                  name="Period 1"
+                  name="Period 1 (Earlier)"
                   dot={false}
                 />
                 <Line
@@ -746,7 +766,7 @@ const EnergyUsageAnalyzer = () => {
                   dataKey="period2"
                   stroke="#a855f7"
                   strokeWidth={2}
-                  name="Period 2"
+                  name="Period 2 (Later)"
                   dot={false}
                 />
               </LineChart>
@@ -819,7 +839,7 @@ const EnergyUsageAnalyzer = () => {
                   dataKey="period1Avg"
                   stroke="#3b82f6"
                   strokeWidth={2}
-                  name="Period 1 Avg"
+                  name="Period 1 (Earlier) Avg"
                   dot={false}
                 />
                 <Line
@@ -851,7 +871,7 @@ const EnergyUsageAnalyzer = () => {
                   dataKey="period2Avg"
                   stroke="#a855f7"
                   strokeWidth={2}
-                  name="Period 2 Avg"
+                  name="Period 2 (Later) Avg"
                   dot={false}
                 />
               </LineChart>
